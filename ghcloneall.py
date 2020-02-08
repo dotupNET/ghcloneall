@@ -22,8 +22,7 @@ except ImportError:  # pragma: PY3
     from configparser import ConfigParser
 
 import requests
-import requests_cache
-
+# import requests_cache
 
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
@@ -372,7 +371,7 @@ class Repo(object):
     def from_repo(cls, repo):
         # use repo['git_url'] for anonymous checkouts, but they'e slower
         # (at least as long as you use SSH connection multiplexing)
-        clone_url = repo['ssh_url']
+        clone_url = repo['clone_url']
         return cls(repo['name'], clone_url, (repo['clone_url'],))
 
     @classmethod
@@ -780,6 +779,9 @@ def _main():
         '--gists', action='store_true', default=None,
         help="clone user's gists")
     parser.add_argument(
+        '--target_path', action='store_false', default=None,
+        help="Target path")
+    parser.add_argument(
         '--repositories', action='store_false', dest='gists',
         help="clone user's or organisation's repositories (default)")
     parser.add_argument(
@@ -833,28 +835,39 @@ def _main():
             args.user = config.get(CONFIG_SECTION, 'github_user')
         if config.has_option(CONFIG_SECTION, 'github_org'):
             args.organization = config.get(CONFIG_SECTION, 'github_org')
+
     if not args.pattern:
         if config.has_option(CONFIG_SECTION, 'pattern'):
             args.pattern = config.get(CONFIG_SECTION, 'pattern')
+
     if args.gists is None:
         if config.has_option(CONFIG_SECTION, 'gists'):
             args.gists = config.getboolean(CONFIG_SECTION, 'gists')
+
     if args.include_forks is None:
         if config.has_option(CONFIG_SECTION, 'include_forks'):
             args.include_forks = config.getboolean(CONFIG_SECTION,
                                                    'include_forks')
+
     if args.include_archived is None:
         if config.has_option(CONFIG_SECTION, 'include_archived'):
             args.include_archived = config.getboolean(CONFIG_SECTION,
                                                       'include_archived')
+
     if args.include_private is None:
         if config.has_option(CONFIG_SECTION, 'include_private'):
             args.include_private = config.getboolean(CONFIG_SECTION,
                                                      'include_private')
+
     if args.include_disabled is None:
         if config.has_option(CONFIG_SECTION, 'include_disabled'):
             args.include_disabled = config.getboolean(CONFIG_SECTION,
                                                       'include_disabled')
+
+    if args.target_path is None:
+        if config.has_option(CONFIG_SECTION, 'target_path'):
+            args.target_path = config.get(CONFIG_SECTION,
+                                                 'target_path')
 
     if args.user and args.organization:
         parser.error(
@@ -898,15 +911,24 @@ def _main():
                     CONFIG_FILE))
         return
 
+    target = os.path.normpath(args.target_path)
+
+    if target is not None:
+      if not os.path.exists(target):
+        os.mkdir(target)
+
+      os.chdir(target)
+      print(target)
+
     if args.include_private is None:
         args.include_private = True
     if args.include_disabled is None:
         args.include_disabled = True
 
-    if args.http_cache:
-        requests_cache.install_cache(args.http_cache,
-                                     backend='sqlite',
-                                     expire_after=300)
+    # if args.http_cache:
+    #     requests_cache.install_cache(args.http_cache,
+    #                                  backend='sqlite',
+    #                                  expire_after=300)
 
     spawn_ssh_control_master()
 
@@ -929,10 +951,12 @@ def _main():
                 include_disabled=args.include_disabled,
             )
         progress.set_limit(len(repos))
-        if args.concurrency < 2:
-            queue = SequentialJobQueue()
-        else:
-            queue = ConcurrentJobQueue(args.concurrency)
+        # if args.concurrency < 2:
+        #     queue = SequentialJobQueue()
+        # else:
+        #     queue = ConcurrentJobQueue(args.concurrency)
+        queue = SequentialJobQueue()
+
         with queue:
             for repo in repos:
                 if args.start_from and repo.name < args.start_from:

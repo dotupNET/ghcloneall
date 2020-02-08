@@ -1,0 +1,12 @@
+[ghcloneall]
+# Provide either github_user or github_org, but not both
+# github_org = ZopeFoundation
+github_user = W3CSSThemes
+# pattern = *.vim
+# You can also uncomment and change these if you wish
+# gists = False
+include_forks = False
+include_archived = False
+include_private = False
+include_disabled = False
+target_path = c:\temp\li\git
